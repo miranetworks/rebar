@@ -22,9 +22,14 @@ CALLER_DIR=$PWD
 
 RUNNER_BASE_DIR=${RUNNER_SCRIPT_DIR%/*}
 RUNNER_ETC_DIR=$RUNNER_BASE_DIR/etc
+RUNNER_GEN_CFG_DIR=$RUNNER_ETC_DIR/generated.configs
+CUTTLEFISH_ESCRIPT=$RUNNER_BASE_DIR/bin/cuttlefish
+ETC_DEFAULT_CONF=/etc/default/{{package_name}}.conf
+RUNNER_LOG_DIR=$RUNNER_BASE_DIR/log
+
 # Note the trailing slash on $PIPE_DIR/
-PIPE_DIR=/tmp/$RUNNER_BASE_DIR/
-RUNNER_USER=
+PIPE_DIR=/var/run/{{nodeid}}/
+RUNNER_USER={{runas}}
 WHOAMI=$(whoami)
 
 # Make sure this script is running as the appropriate user
@@ -38,6 +43,9 @@ if ([ "$RUNNER_USER" ] && [ "x$WHOAMI" != "x$RUNNER_USER" ]); then
     exec sudo -H -u $RUNNER_USER -i $RUNNER_SCRIPT_DIR/$RUNNER_SCRIPT $@
 fi
 
+# Make sure log directory exists
+mkdir -p $RUNNER_LOG_DIR
+
 # Identify the script name
 SCRIPT=`basename $0`
 
@@ -46,33 +54,18 @@ START_ERL=`cat $RUNNER_BASE_DIR/releases/start_erl.data`
 ERTS_VSN=${START_ERL% *}
 APP_VSN=${START_ERL#* }
 
-# Use $CWD/vm.args if exists, otherwise releases/APP_VSN/vm.args, or
-# else etc/vm.args
-if [ -e "$CALLER_DIR/vm.args" ]; then
-    VMARGS_PATH=$CALLER_DIR/vm.args
-    USE_DIR=$CALLER_DIR
-else
-    USE_DIR=$RUNNER_BASE_DIR
-    if [ -e "$RUNNER_BASE_DIR/releases/$APP_VSN/vm.args" ]; then
-        VMARGS_PATH="$RUNNER_BASE_DIR/releases/$APP_VSN/vm.args"
-    else
-        VMARGS_PATH="$RUNNER_ETC_DIR/vm.args"
+if [ -e ${CUTTLEFISH_ESCRIPT} && -e ${ETC_DEFAULT_CONF} ]; then
+    mkdir -p $RUNNER_GEN_CFG_DIR
+    CUTTLEFISH_CFG=`$RUNNER_BASE_DIR/erts-$ERTS_VSN/bin/escript $CUTTLEFISH_ESCRIPT -c $ETC_DEFAULT_CONF -s $RUNNER_BASE_DIR/lib/ -d $RUNNER_GEN_CFG_DIR/`
+    if [ -z "$CUTTLEFISH_CFG" ]; then
+        echo "cuttlefish failed to generate config files."
+        exit 1
     fi
-fi
-
-RUNNER_LOG_DIR=$USE_DIR/log
-# Make sure log directory exists
-mkdir -p $RUNNER_LOG_DIR
-
-# Use releases/VSN/sys.config if it exists otherwise use etc/app.config
-if [ -e "$USE_DIR/sys.config" ]; then
-    CONFIG_PATH="$USE_DIR/sys.config"
+    VMARGS_PATH=`echo ${CUTTLEFISH_CFG} | awk '{print $4}'`
+    CONFIG_PATH=`echo ${CUTTLEFISH_CFG} | awk '{print $2}'`
 else
-    if [ -e "$RUNNER_BASE_DIR/releases/$APP_VSN/sys.config" ]; then
-        CONFIG_PATH="$RUNNER_BASE_DIR/releases/$APP_VSN/sys.config"
-    else
-        CONFIG_PATH="$RUNNER_ETC_DIR/app.config"
-    fi
+    VMARGS_PATH="$RUNNER_ETC_DIR/vm.args"
+    CONFIG_PATH="$RUNNER_ETC_DIR/app.config"
 fi
 
 # Extract the target node name from node.args
@@ -125,10 +118,7 @@ if [ -z "$COOKIE_ARG" ]; then
 fi
 
 # Make sure CWD is set to the right dir
-cd $USE_DIR
-
-# Make sure log directory exists
-mkdir -p $USE_DIR/log
+cd $RUNNER_BASE_DIR
 
 RUNNER_SCRIPT_DATA=
 if [ -e "$RUNNER_BASE_DIR/releases/$APP_VSN/runner_script.data" ]; then
@@ -345,7 +335,7 @@ case "$1" in
         BINDIR=$ROOTDIR/erts-$ERTS_VSN/bin
         EMU=beam
         PROGNAME=`echo $0 | sed 's/.*\\///'`
-        CMD="$BINDIR/erlexec $SLIM_ARGS -boot $RUNNER_BASE_DIR/releases/$APP_VSN/$BOOTFILE -mode embedded -config $CONFIG_PATH -args_file $VMARGS_PATH"
+        CMD="$BINDIR/erlexec $SLIM_ARGS -boot $RUNNER_BASE_DIR/releases/$APP_VSN/$BOOTFILE -mode embedded -config $CONFIG_PATH -args_file $VMARGS_PATH -vm_args $VMARGS_PATH"
         export EMU
         export ROOTDIR
         export BINDIR
@@ -373,7 +363,7 @@ case "$1" in
         BINDIR=$ROOTDIR/erts-$ERTS_VSN/bin
         EMU=beam
         PROGNAME=`echo $0 | sed 's/.*\///'`
-        CMD="$BINDIR/erlexec $SLIM_ARGS $FOREGROUNDOPTIONS -boot $RUNNER_BASE_DIR/releases/$APP_VSN/$BOOTFILE -config $CONFIG_PATH -args_file $VMARGS_PATH"
+        CMD="$BINDIR/erlexec $SLIM_ARGS $FOREGROUNDOPTIONS -boot $RUNNER_BASE_DIR/releases/$APP_VSN/$BOOTFILE -config $CONFIG_PATH -args_file $VMARGS_PATH -vm_args $VMARGS_PATH"
         export EMU
         export ROOTDIR
         export BINDIR

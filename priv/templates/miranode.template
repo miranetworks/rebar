@@ -1,13 +1,11 @@
-{variables, [{nodeid, "mynode"}]}.
+{variables, [{nodeid, "mira_test_app"}, {package_name, "mira-test-app"}, {runas, "testapp"}]}.
 {template, "miranode.reltool.config", "reltool.config.template"}.
 {template, "miranode.rel.rebar.config", "rebar.config"}.
 {file, "miranode.erl.script", "files/erl"}.
 {chmod, 8#744, "files/erl"}.
 {file, "miranode.nodetool", "files/nodetool"}.
 {chmod, 8#744, "files/nodetool"}.
-{file, "miranode.runner", "files/{{nodeid}}"}.
+{template, "miranode.runner", "files/{{nodeid}}"}.
 {chmod, 8#744, "files/{{nodeid}}"}.
-%{template, "miranode.sys.config", "files/sys.config"}.
-%{template, "miranode.vm.args",    "files/vm.args"}.
 {template, "miranode.00-nodeid.schema", "schemas/00-{{nodeid}}.schema"}.
 {template, "miranode.99-erlang_vm.schema", "schemas/99-erlang_vm.schema"}.

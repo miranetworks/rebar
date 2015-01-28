@@ -29,6 +29,7 @@
 -export(['create-app'/2,
          'create-lib'/2,
          'create-node'/2,
+         'create-miranode'/2,
          'list-templates'/2,
          create/2]).
 
@@ -58,6 +59,11 @@
 'create-node'(Config, _File) ->
     %% Alias for create w/ template=simplenode
     create1(Config, "simplenode").
+
+'create-miranode'(Config, _File) ->
+    %% Alias for create w/ template=simplenode
+    create1(Config, "miranode").
+
 
 'list-templates'(Config, _File) ->
     {AvailTemplates, Files} = find_templates(Config),
@@ -250,6 +256,7 @@ find_disk_templates(Config) ->
     [{file, F} || F <- OtherTemplates ++ HomeFiles ++ LocalFiles].
 
 find_other_templates(Config) ->
+
     case rebar_config:get_global(Config, template_dir, undefined) of
         undefined ->
             [];

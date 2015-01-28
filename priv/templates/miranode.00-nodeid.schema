@@ -1,0 +1,84 @@
+%%-*- mode: erlang -*-
+
+%% @doc Sets the ssl accept timeout in milliseconds for inbound requests.
+{mapping, "frontend_https_accept_timeout_ms", "mochiweb.ssl_accept_timeout_ms", [
+        {datatype, integer}
+    ,   {default, 30000}
+]}.
+
+%% @doc Sets the http request timeout in milliseconds for inbound requests.
+{mapping, "frontend_http_request_rx_timeout_ms", "mochiweb.http_req_recv_timeout_ms", [
+        {datatype, integer}
+    ,   {default, 30000}
+]}.
+
+%% @doc Sets the SSL session lifetime in seconds. 
+{mapping, "ssl_session_lifetime_sec", "ssl.session_lifetime", [
+        {datatype, integer}
+    ,   {default, 10}
+]}.
+
+%% @doc Sets the stats publishing interval in milliseconds.
+{mapping, "stats_publish_interval_ms", "estatsd.flush_interval", [
+        {datatype, integer}
+    ,   {default, 60000}
+]}.
+
+%% @doc Sets the host that the stats will be published to.
+{mapping, "stats_host", "estatsd.graphite_host", [
+        {datatype, string}
+    ,   {default, "graphite.miranetworks.net"}
+]}.
+
+%% @doc Sets the port of the host that the stats will be published to.
+{mapping, "stats_port", "estatsd.graphite_port", [
+        {datatype, integer}
+    ,   {default, 2003}
+]}.
+
+%% @doc Sets the kernel log file location.
+{mapping, "kernel_log", "kernel.error_logger", [
+        {datatype, string}
+    ,   {default, "./log/kernel.log"}
+]}.
+
+{translation, "kernel.error_logger",
+fun(Conf) ->
+    {file, cuttlefish:conf_get("kernel_log", Conf)}
+end}.
+
+% @doc Set the location of the SASL error log file.
+{mapping, "sasl_log", "sasl.sasl_error_logger", [
+        {datatype, string}
+    ,   {default, "./log/sasl-error.log"}
+]}.
+
+{translation, "sasl.sasl_error_logger",
+fun(Conf) ->
+    {file, cuttlefish:conf_get("sasl_log", Conf)}
+end}.
+
+% @doc Restricts the error logging performed.
+{mapping, "sasl_log_type", "sasl.errlog_type", [
+        {datatype, {enum, [error, progress, all]}}
+    ,   {default, "error"}
+]}.
+
+% @doc Specifies where sasl mf (multi-file) files are created
+{mapping, "sasl_mf_log_dir", "sasl.error_logger_mf_dir", [
+        {datatype, string}
+    ,   {default, "./log/"}
+]}.
+
+% @doc Specifies the size of individual sasl mf files.
+{mapping, "sasl_mf_log_maxbytes", "sasl.error_logger_mf_maxbytes", [
+        {datatype, integer}
+    ,   {default, 10485760}
+]}.
+
+% @doc Specifies maximum number of sasl mf files to keep.
+{mapping, "sasl_mf_log_maxfiles", "sasl.error_logger_mf_maxfiles", [
+        {datatype, integer}
+    ,   {default, 5}
+]}.
+

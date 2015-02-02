@@ -144,7 +144,7 @@ info(help, 'create-miranode') ->
        "Create simple miranode skel.~n"
        "~n"
        "Valid command line options:~n"
-       "  [nodeid=my_app_name, package_name=package-name, runas=username, template_vars=path_to_file_containing_reltool_config_app_includes]~n", []);
+       "  [nodeid=my_app_name, package_name=package-name, runas=username, app_port=HTTP_LISTEN_PORT template_vars=path_to_file_containing_reltool_config_app_includes]~n", []);
 info(help, 'list-templates') ->
     ?CONSOLE("List available templates.~n", []).
 

@@ -1,5 +1,54 @@
 %%-*- mode: erlang -*-
 
+%% @doc CfgBus - cfg_bus_get_object_url.
+{mapping, "cfg_bus_get_object_url", "mira_cfg_client_api.config_url", [
+        {datatype, string}
+    ,   {default, "https://cfg_client.host:30313/config/get"}
+]}.
+
+%% @doc CfgBus - cfg_bus_get_object_version.
+{mapping, "cfg_bus_get_object_version", "mira_cfg_client_api.version_poll_url", [
+        {datatype, string}
+    ,   {default, "https://cfg_client.host:30313/config/version"}
+]}.
+
+%% @doc CfgBus - cfg_bus_set_local_object_version_url.
+{mapping, "cfg_bus_set_local_object_version_url", "mira_cfg_client_api.publish_version_url", [
+        {datatype, string}
+    ,   {default, "https://cfg_client.host:30313/config/set_version"}
+]}.
+
+%% @doc CfgBus - cfg_bus_client_key.
+{mapping, "cfg_bus_client_key", "mira_cfg_client_api.client_key", [
+        {datatype, string}
+    ,   {default, "{{nodeid}}@unknown.host"}
+]}.
+
+%% @doc CfgBus - cfg_bus_notification_url.
+{mapping, "cfg_bus_notification_url", "mira_cfg_client_api.feedback_url", [
+        {datatype, string}
+    ,   {default, "http://unknown.host:{{app_port}}/config/notify"}
+]}.
+
+%% @doc CfgBus - cfg_buss_poll_rate_ms.
+{mapping, "cfg_buss_poll_rate_ms", "mira_cfg_client_api.poll_rate", [
+        {datatype, integer}
+    ,   {default, 120000}
+]}.
+
+%% @doc CfgBus - cfg_bus_notification_callback_mod.
+{mapping, "cfg_bus_notification_callback_mod", "mira_cfg_client_api.feedback_mod", [
+        {datatype, {enum, [cfg_object_config_util]}}
+    ,   {default, cfg_object_config_util}
+]}.
+
+%% @doc CfgBus - cfg_bus_notification_callback_fun.
+{mapping, "cfg_bus_notification_callback_fun", "mira_cfg_client_api.feedback_fun", [
+        {datatype, {enum, [refresh]}}
+    ,   {default, refresh}
+]}.
+
+
 %% @doc Sets the ssl accept timeout in milliseconds for inbound requests.
 {mapping, "frontend_https_accept_timeout_ms", "mochiweb.ssl_accept_timeout_ms", [
         {datatype, integer}

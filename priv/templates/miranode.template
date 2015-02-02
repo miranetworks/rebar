@@ -1,4 +1,4 @@
-{variables, [{nodeid, "mira_test_app"}, {package_name, "mira-test-app"}, {runas, "testapp"}]}.
+{variables, [{nodeid, "mira_test_app"}, {package_name, "mira-test-app"}, {runas, "testappuser"}]}.
 {template, "miranode.reltool.config", "reltool.config.template"}.
 {template, "miranode.rel.rebar.config", "rebar.config"}.
 {file, "miranode.erl.script", "files/erl"}.

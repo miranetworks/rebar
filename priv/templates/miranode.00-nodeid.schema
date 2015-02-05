@@ -1,133 +1,49 @@
 %%-*- mode: erlang -*-
 
-%% @doc CfgBus - cfg_bus_get_object_url.
-{mapping, "cfg_bus_get_object_url", "mira_cfg_client_api.config_url", [
+%% @doc {{nodeid}} - example application specific config
+{mapping, "listener.http.$name", "{{nodeid}}.http", [
+        {datatype, ip}
+    ,   {default, {"0.0.0.0", {{app_port}} }}
+    ,   {include_default, "default"}
+]}.
+
+{translation,
+ "{{nodeid}}.http",
+  fun(Conf) ->
+      HTTP = cuttlefish_variable:filter_by_prefix("listener.http", Conf),
+      [ IP || {_, IP} <- HTTP]
+  end
+}.
+
+%% @doc IP Checker rules for http interface. Comma-seperated list of 
+%%      routing_prefix/mask (i.e. CIDR notation) entries
+%%      Example: 10.2.2.0/24,192.168.0.1/32,127.0.0.0/24
+{mapping, "ipchecker.http.$name", "{{nodeid}}.ipchecker_http", [
         {datatype, string}
-    ,   {default, "https://cfg_client.host:30313/config/get"}
+    ,   {default, "127.0.0.1/24,127.0.0.2/24"}
+    ,   {include_default, "all"}
 ]}.
 
-%% @doc CfgBus - cfg_bus_get_object_version.
-{mapping, "cfg_bus_get_object_version", "mira_cfg_client_api.version_poll_url", [
+{translation,
+ "{{nodeid}}.ipchecker_http",
+  fun(Conf) ->
+
+    HttpIpRules = lists:filter(
+    fun({K, _V}) ->
+       cuttlefish_variable:is_fuzzy_match(K, string:tokens("ipchecker.http.$name", "."))
+    end,
+    Conf),
+
+    [ {Path, Rules} || {[_,_,Path], Rules} <- HttpIpRules ]
+
+  end
+}.
+
+
+%% @doc UUID - 12 character hex string to use as the MAC in 
+%% UUID generation.
+{mapping, "uuid_mac", "mira_uuid_server.node_mac", [
         {datatype, string}
-    ,   {default, "https://cfg_client.host:30313/config/version"}
-]}.
-
-%% @doc CfgBus - cfg_bus_set_local_object_version_url.
-{mapping, "cfg_bus_set_local_object_version_url", "mira_cfg_client_api.publish_version_url", [
-        {datatype, string}
-    ,   {default, "https://cfg_client.host:30313/config/set_version"}
-]}.
-
-%% @doc CfgBus - cfg_bus_client_key.
-{mapping, "cfg_bus_client_key", "mira_cfg_client_api.client_key", [
-        {datatype, string}
-    ,   {default, "{{nodeid}}@unknown.host"}
-]}.
-
-%% @doc CfgBus - cfg_bus_notification_url.
-{mapping, "cfg_bus_notification_url", "mira_cfg_client_api.feedback_url", [
-        {datatype, string}
-    ,   {default, "http://unknown.host:{{app_port}}/config/notify"}
-]}.
-
-%% @doc CfgBus - cfg_buss_poll_rate_ms.
-{mapping, "cfg_buss_poll_rate_ms", "mira_cfg_client_api.poll_rate", [
-        {datatype, integer}
-    ,   {default, 120000}
-]}.
-
-%% @doc CfgBus - cfg_bus_notification_callback_mod.
-{mapping, "cfg_bus_notification_callback_mod", "mira_cfg_client_api.feedback_mod", [
-        {datatype, {enum, [cfg_object_config_util]}}
-    ,   {default, cfg_object_config_util}
-]}.
-
-%% @doc CfgBus - cfg_bus_notification_callback_fun.
-{mapping, "cfg_bus_notification_callback_fun", "mira_cfg_client_api.feedback_fun", [
-        {datatype, {enum, [refresh]}}
-    ,   {default, refresh}
-]}.
-
-
-%% @doc Sets the ssl accept timeout in milliseconds for inbound requests.
-{mapping, "frontend_https_accept_timeout_ms", "mochiweb.ssl_accept_timeout_ms", [
-        {datatype, integer}
-    ,   {default, 30000}
-]}.
-
-%% @doc Sets the http request timeout in milliseconds for inbound requests.
-{mapping, "frontend_http_request_rx_timeout_ms", "mochiweb.http_req_recv_timeout_ms", [
-        {datatype, integer}
-    ,   {default, 30000}
-]}.
-
-%% @doc Sets the SSL session lifetime in seconds. 
-{mapping, "ssl_session_lifetime_sec", "ssl.session_lifetime", [
-        {datatype, integer}
-    ,   {default, 10}
-]}.
-
-%% @doc Sets the stats publishing interval in milliseconds.
-{mapping, "stats_publish_interval_ms", "estatsd.flush_interval", [
-        {datatype, integer}
-    ,   {default, 60000}
-]}.
-
-%% @doc Sets the host that the stats will be published to.
-{mapping, "stats_host", "estatsd.graphite_host", [
-        {datatype, string}
-    ,   {default, "graphite.miranetworks.net"}
-]}.
-
-%% @doc Sets the port of the host that the stats will be published to.
-{mapping, "stats_port", "estatsd.graphite_port", [
-        {datatype, integer}
-    ,   {default, 2003}
-]}.
-
-%% @doc Sets the kernel log file location.
-{mapping, "kernel_log", "kernel.error_logger", [
-        {datatype, string}
-    ,   {default, "./log/kernel.log"}
-]}.
-
-{translation, "kernel.error_logger",
-fun(Conf) ->
-    {file, cuttlefish:conf_get("kernel_log", Conf)}
-end}.
-
-% @doc Set the location of the SASL error log file.
-{mapping, "sasl_log", "sasl.sasl_error_logger", [
-        {datatype, string}
-    ,   {default, "./log/sasl-error.log"}
-]}.
-
-{translation, "sasl.sasl_error_logger",
-fun(Conf) ->
-    {file, cuttlefish:conf_get("sasl_log", Conf)}
-end}.
-
-% @doc Restricts the error logging performed.
-{mapping, "sasl_log_type", "sasl.errlog_type", [
-        {datatype, {enum, [error, progress, all]}}
-    ,   {default, "error"}
-]}.
-
-% @doc Specifies where sasl mf (multi-file) files are created
-{mapping, "sasl_mf_log_dir", "sasl.error_logger_mf_dir", [
-        {datatype, string}
-    ,   {default, "./log/"}
-]}.
-
-% @doc Specifies the size of individual sasl mf files.
-{mapping, "sasl_mf_log_maxbytes", "sasl.error_logger_mf_maxbytes", [
-        {datatype, integer}
-    ,   {default, 10485760}
-]}.
-
-% @doc Specifies maximum number of sasl mf files to keep.
-{mapping, "sasl_mf_log_maxfiles", "sasl.error_logger_mf_maxfiles", [
-        {datatype, integer}
-    ,   {default, 5}
+    ,   {default, "001122334455"}
 ]}.
 

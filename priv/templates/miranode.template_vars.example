@@ -1,3 +1,5 @@
+%%-*- mode: erlang -*-
+
 {reltool_app_includes,
     %NOTE: Each {app, ....} tuple has a trailing ,
     %NOTE: Don't add a {app, YOUR_APP, ...} entry here

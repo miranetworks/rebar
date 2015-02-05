@@ -20,12 +20,18 @@ RUNNER_SCRIPT=${0##*/}
 
 CALLER_DIR=$PWD
 
+PKG_CFG={{package_name}}.conf
+ETC_DEFAULT_DIR=/etc/default
+ETC_DEFAULT_CONF=$ETC_DEFAULT_DIR/$PKG_CFG
+
 RUNNER_BASE_DIR=${RUNNER_SCRIPT_DIR%/*}
+
 RUNNER_ETC_DIR=$RUNNER_BASE_DIR/etc
+RUNNER_ETC_DEFAULT_CONF=$RUNNER_ETC_DIR/$PKG_CFG
 RUNNER_GEN_CFG_DIR=$RUNNER_ETC_DIR/generated.configs
-CUTTLEFISH_ESCRIPT=$RUNNER_BASE_DIR/bin/cuttlefish
-ETC_DEFAULT_CONF=/etc/default/{{package_name}}.conf
 RUNNER_LOG_DIR=$RUNNER_BASE_DIR/log
+
+CUTTLEFISH_ESCRIPT=$RUNNER_BASE_DIR/bin/cuttlefish
 
 # Note the trailing slash on $PIPE_DIR/
 PIPE_DIR=/var/run/{{nodeid}}/
@@ -54,9 +60,17 @@ START_ERL=`cat $RUNNER_BASE_DIR/releases/start_erl.data`
 ERTS_VSN=${START_ERL% *}
 APP_VSN=${START_ERL#* }
 
-if [ -e ${CUTTLEFISH_ESCRIPT} && -e ${ETC_DEFAULT_CONF} ]; then
+if test -e ${CUTTLEFISH_ESCRIPT} && ( test -e ${ETC_DEFAULT_CONF} || test -e $RUNNER_ETC_DEFAULT_CONF ); then
     mkdir -p $RUNNER_GEN_CFG_DIR
-    CUTTLEFISH_CFG=`$RUNNER_BASE_DIR/erts-$ERTS_VSN/bin/escript $CUTTLEFISH_ESCRIPT -c $ETC_DEFAULT_CONF -s $RUNNER_BASE_DIR/lib/ -d $RUNNER_GEN_CFG_DIR/`
+
+    if [ -e ${ETC_DEFAULT_CONF} ]; then
+        CUTTLEFISH_ETC_DIR=$ETC_DEFAULT_DIR
+    else
+        CUTTLEFISH_ETC_DIR=$RUNNER_ETC_DIR
+    fi
+
+    CUTTLEFISH_CFG=`$RUNNER_BASE_DIR/erts-$ERTS_VSN/bin/escript $CUTTLEFISH_ESCRIPT -c $CUTTLEFISH_ETC_DIR/$PKG_CFG -e $CUTTLEFISH_ETC_DIR -s $RUNNER_BASE_DIR/lib/ -d $RUNNER_GEN_CFG_DIR/`
+
     if [ -z "$CUTTLEFISH_CFG" ]; then
         echo "cuttlefish failed to generate config files."
         exit 1

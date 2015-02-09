@@ -399,8 +399,62 @@ case "$1" in
         fi
         echo $PID
         ;;
+
+# App specific section start.
+    refresh)
+        ping_node
+        ES=$?
+        if [ "$ES" -ne 0 ]; then
+            echo "Node is not running!"
+            exit $ES
+        fi
+        $NODETOOL rpcterms {{nodeid}}_recovery refresh ""
+        ;;
+  
+    pause_consumers)
+        ping_node
+        ES=$?
+        if [ "$ES" -ne 0 ]; then
+            echo "Node is not running!"
+            exit $ES
+        fi
+        $NODETOOL rpcterms {{nodeid}}_recovery pause_all_consumers ""
+        ;;
+
+    resume_consumers)
+        ping_node
+        ES=$?
+        if [ "$ES" -ne 0 ]; then
+            echo "Node is not running!"
+            exit $ES
+        fi
+        $NODETOOL rpcterms {{nodeid}}_recovery resume_all_consumers ""
+        ;;
+
+    dlq_requeue)
+        ping_node
+        ES=$?
+        if [ "$ES" -ne 0 ]; then
+            echo "Node is not running!"
+            exit $ES
+        fi
+        $NODETOOL rpcterms {{nodeid}}_recovery start_dlq_recovery_on_all_requeue ""
+        ;;
+
+    apply)
+        ping_node
+        ES=$?
+        if [ "$ES" -ne 0 ]; then
+            echo "Node is not running!"
+            exit $ES
+        fi
+        $NODETOOL rpcterms erlang apply "${2}. ${3}. ${4}."
+        ;;
+
+# App specific section end.
+
     *)
-        echo "Usage: $SCRIPT {start|start_boot <file>|foreground|stop|restart|reboot|ping|console|getpid|console_clean|console_boot <file>|attach|remote_console|upgrade}"
+        echo "Usage: $SCRIPT {start|stop|restart|reboot|ping|console|getpid|console_clean|attach|remote_console|refresh|pause_consumers|resume_consumers|dlq_requeue|apply}"
         exit 1
         ;;
 esac

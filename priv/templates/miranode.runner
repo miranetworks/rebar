@@ -257,23 +257,23 @@ case "$1" in
         done
         ;;
 
-    restart)
-        ## Restart the VM without exiting the process
-        $NODETOOL restart
-        ES=$?
-        if [ "$ES" -ne 0 ]; then
-            exit $ES
-        fi
-        ;;
-
-    reboot)
-        ## Restart the VM completely (uses heart to restart it)
-        $NODETOOL reboot
-        ES=$?
-        if [ "$ES" -ne 0 ]; then
-            exit $ES
-        fi
-        ;;
+#    restart)
+#        ## Restart the VM without exiting the process
+#        $NODETOOL restart
+#        ES=$?
+#        if [ "$ES" -ne 0 ]; then
+#            exit $ES
+#        fi
+#        ;;
+#
+#    reboot)
+#        ## Restart the VM completely (uses heart to restart it)
+#        $NODETOOL reboot
+#        ES=$?
+#        if [ "$ES" -ne 0 ]; then
+#            exit $ES
+#        fi
+#        ;;
 
     ping)
         ## See if the VM is alive
@@ -454,7 +454,7 @@ case "$1" in
 # App specific section end.
 
     *)
-        echo "Usage: $SCRIPT {start|stop|restart|reboot|ping|console|getpid|console_clean|attach|remote_console|refresh|pause_consumers|resume_consumers|dlq_requeue|apply}"
+        echo "Usage: $SCRIPT {start|stop|ping|console|getpid|console_clean|attach|remote_console|refresh|pause_consumers|resume_consumers|dlq_requeue|apply}"
         exit 1
         ;;
 esac

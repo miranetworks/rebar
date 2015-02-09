@@ -122,6 +122,13 @@
 {validator, "positive_integer", "must be a positive integer",
   fun(X) -> X >= 0 end}.
 
+
+%% @doc Set the location of where the Mnesia db files live.
+{mapping, "erlang.mnesia_dir", "vm_args.-mnesia core_dir", [
+  {default, "Mnesia.{{nodeid}}"},
+  {datatype, string}
+]}.
+
 %% @doc Tune the number of Mnesia table loaders
 {mapping, "erlang.mnesia_table_loaders", "vm_args.-mnesia no_table_loaders", [
   {default, 400},

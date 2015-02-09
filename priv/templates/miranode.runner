@@ -63,13 +63,13 @@ APP_VSN=${START_ERL#* }
 if test -e ${CUTTLEFISH_ESCRIPT} && ( test -e ${ETC_DEFAULT_CONF} || test -e $RUNNER_ETC_DEFAULT_CONF ); then
     mkdir -p $RUNNER_GEN_CFG_DIR
 
-    if [ -e ${ETC_DEFAULT_CONF} ]; then
-        CUTTLEFISH_ETC_DIR=$ETC_DEFAULT_DIR
+    if [ -f $ETC_DEFAULT_CONF ]; then
+        CUTTLEFISH_CONF=$ETC_DEFAULT_CONF
     else
-        CUTTLEFISH_ETC_DIR=$RUNNER_ETC_DIR
+        CUTTLEFISH_CONF=$RUNNER_ETC_DEFAULT_CONF
     fi
 
-    CUTTLEFISH_CFG=`$RUNNER_BASE_DIR/erts-$ERTS_VSN/bin/escript $CUTTLEFISH_ESCRIPT -c $CUTTLEFISH_ETC_DIR/$PKG_CFG -e $CUTTLEFISH_ETC_DIR -s $RUNNER_BASE_DIR/lib/ -d $RUNNER_GEN_CFG_DIR/`
+    CUTTLEFISH_CFG=`$RUNNER_BASE_DIR/erts-$ERTS_VSN/bin/escript $CUTTLEFISH_ESCRIPT -c $CUTTLEFISH_CONF -e $RUNNER_ETC_DIR/ -s $RUNNER_BASE_DIR/lib/ -d $RUNNER_GEN_CFG_DIR/`
 
     if [ -z "$CUTTLEFISH_CFG" ]; then
         echo "cuttlefish failed to generate config files."

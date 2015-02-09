@@ -31,7 +31,8 @@
     Crack = fun(Name, S) ->
         [StrIpPort, CertFile, KeyFile] = string:tokens(S, " "),
         [StrIp, StrPort]  = string:tokens(StrIpPort, ":"),
-        {list_to_atom("https_listener_" ++ Name), {StrIp, list_to_integer(StrPort), CertFile, KeyFile}}
+        {ok, Ip} = inet:parse_address(StrIp),
+        {list_to_atom("https_listener_" ++ Name), {Ip, list_to_integer(StrPort), CertFile, KeyFile}}
     end,
 
     [Crack(N, V) || {["listener","https",N], V} <- HTTPS]
@@ -58,7 +59,7 @@
     end,
     Conf),
 
-    [ {Path, Rules} || {[_,_,Path], Rules} <- HttpIpRules ]
+    [ {Path, Rules} || {[_,Path], Rules} <- HttpIpRules ]
 
   end
 }.

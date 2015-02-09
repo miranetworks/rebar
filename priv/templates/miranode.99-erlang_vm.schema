@@ -16,71 +16,8 @@
 %% More information at: http://erlang.org/doc/man/erl.html
 {mapping, "erlang.smp", "vm_args.-smp", [
   {default, disable},
-  {datatype, {enum, [enable, auto, disable]}},
-  hidden
+  {datatype, {enum, [enable, auto, disable]}}
 ]}.
-
-%% @doc Sets the mapping of warning messages for error_logger.
-%% Messages sent to the error logger using one of the warning
-%% routines can be mapped either to errors (default), warnings
-%% (w - default), or info reports (i).
-{mapping, "erlang.W", "vm_args.+W", [
-  {default, "w"},
-  hidden
-]}.
-
-%% @doc Sets the number of scheduler threads to create and scheduler
-%% threads to set online when erlang.smp support has been enabled. The
-%% maximum for both values is 1024. If the Erlang runtime system is
-%% able to determine the amount of logical processors configured and
-%% logical processors available, schedulers.total will default to
-%% logical processors configured, and schedulers.online will default
-%% to logical processors available; otherwise, the default values will
-%% be 1. Schedulers may be omitted if schedulers.online is not and
-%% vice versa.
-%%
-%% If schedulers.total or schedulers.online is specified as a negative
-%% number, the value is subtracted from the default number of logical
-%% processors configured or logical processors available,
-%% respectively.
-%%
-%% Specifying the value 0 for Schedulers or SchedulersOnline resets
-%% the number of scheduler threads or scheduler threads online
-%% respectively to its default value.
-%%
-%% This option is ignored if the emulator doesn't have SMP support
-%% enabled (see the erlang.smp flag).
-%%
-%% More information at: http://erlang.org/doc/man/erl.html
-%% +S Schedulers:SchedulerOnline
-{mapping, "erlang.schedulers.total", "vm_args.+S", [
-  {default, undefined},
-  {datatype, integer},
-  {validators, ["=<1024"]}
-]}.
-
-%% @see erlang.schedulers.total
-{mapping, "erlang.schedulers.online", "vm_args.+S", [
-  {default, undefined},
-  {datatype, integer},
-  {validators, ["=<1024"]}
-]}.
-
-{translation, "vm_args.+S",
- fun(Conf) ->
-  Total = cuttlefish:conf_get("erlang.schedulers.total", Conf, undefined),
-  Online = cuttlefish:conf_get("erlang.schedulers.online", Conf, undefined),
-  case {Total, Online} of
-      {undefined, undefined} -> cuttlefish:unset();
-      {undefined, O} -> ":" ++ integer_to_list(O);
-      {T, undefined} -> integer_to_list(T);
-      _ -> integer_to_list(Total) ++ ":" ++ integer_to_list(Online)
-  end
- end
-}.
-
-{validator, "=<1024", "has a maximum value of 1024",
- fun(X) -> X =< 1024 end}.
 
 %% @doc Enables or disables the kernel poll functionality if the
 %% emulator supports it. If the emulator does not support kernel poll,
@@ -90,8 +27,7 @@
 %% Similar information at: http://erlang.org/doc/man/erl.html
 {mapping, "erlang.K", "vm_args.+K", [
   {default, on},
-  {datatype, flag},
-  hidden
+  {datatype, flag}
 ]}.
 
 %%%% Tunables
@@ -133,8 +69,7 @@
 %% More information at: http://erlang.org/doc/man/erl.html
 {mapping, "erlang.async_threads.stack_size", "vm_args.+a", [
   {datatype, bytesize},
-  {validators, [ "stack-size-divisible", "stack-size-range"]},
-  hidden
+  {validators, [ "stack-size-divisible", "stack-size-range"]}
 ]}.
 
 {validator, "stack-size-divisible", ("must be divisible by " ++ integer_to_list(erlang:system_info({wordsize,external}))),
@@ -181,18 +116,22 @@
 {mapping, "erlang.fullsweep_after", "vm_args.-env ERL_FULLSWEEP_AFTER", [
   {default, 10},
   {datatype, integer},
-  hidden,
   {validators, ["positive_integer"]}
 ]}.
 
 {validator, "positive_integer", "must be a positive integer",
   fun(X) -> X >= 0 end}.
 
-%% @doc Set the location of crash dumps
-{mapping, "erlang.crash_dump", "vm_args.-env ERL_CRASH_DUMP", [
-  {default, "erl_crash.dump"},
-  {datatype, file},
-  hidden
+%% @doc Tune the number of Mnesia table loaders
+{mapping, "erlang.mnesia_table_loaders", "vm_args.-mnesia no_table_loaders", [
+  {default, 400},
+  {datatype, integer}
+]}.
+
+%% @doc Tune the number of Mnesia log dump threshold
+{mapping, "erlang.mnesia_dump_log_write_threshold", "vm_args.-mnesia dump_log_write_threshold", [
+  {default, 20000},
+  {datatype, integer}
 ]}.
 
 %% Note: OTP R15 and earlier uses -env ERL_MAX_ETS_TABLES,
@@ -201,15 +140,13 @@
 {mapping, "erlang.max_ets_tables",
   cuttlefish:otp("R16", "vm_args.+e", "vm_args.-env ERL_MAX_ETS_TABLES"), [
   {default, 64000},
-  {datatype, integer},
-  hidden
+  {datatype, integer}
 ]}.
 
 %% @doc Raise the default erlang process limit
 {mapping, "erlang.process_limit", "vm_args.+P", [
   {datatype, integer},
-  {default, 64000},
-  hidden
+  {default, 64000}
 ]}.
 
 %% @doc For nodes with many busy_dist_port events, Basho recommends
@@ -221,7 +158,6 @@
 {mapping, "erlang.distribution_buffer_size", "vm_args.+zdbbl", [
   {datatype, bytesize},
   {commented, "32MB"},
-  hidden,
   {validators, ["zdbbl_range"]}
 ]}.
 
@@ -243,52 +179,6 @@
  end
 }.
 
-%% @doc Set scheduler forced wakeup interval. All run queues will be
-%% scanned each Interval milliseconds. While there are sleeping
-%% schedulers in the system, one scheduler will be woken for each
-%% non-empty run queue found. An Interval of zero disables this
-%% feature, which also is the default.
-%%
-%% This feature is a workaround for lengthy executing native code, and
-%% native code that do not bump reductions properly.
-%%
-%% More information: http://www.erlang.org/doc/man/erl.html#+sfwi
-{mapping, "erlang.schedulers.force_wakeup_interval", "vm_args.+sfwi", [
-  {commented, 500},
-  {datatype, integer}
-]}.
-
-%% @doc Enable or disable scheduler compaction of load. By default
-%% scheduler compaction of load is enabled. When enabled, load
-%% balancing will strive for a load distribution which causes as many
-%% scheduler threads as possible to be fully loaded (i.e., not run out
-%% of work). This is accomplished by migrating load (e.g. runnable
-%% processes) into a smaller set of schedulers when schedulers
-%% frequently run out of work. When disabled, the frequency with which
-%% schedulers run out of work will not be taken into account by the
-%% load balancing logic.
-%%
-%% More information: http://www.erlang.org/doc/man/erl.html#+scl
-{mapping, "erlang.schedulers.compaction_of_load", "vm_args.+scl", [
-  {commented, "false"},
-  {datatype, {enum, [true, false]}}
-]}.
-
-%% @doc Enable or disable scheduler utilization balancing of load. By
-%% default scheduler utilization balancing is disabled and instead
-%% scheduler compaction of load is enabled which will strive for a
-%% load distribution which causes as many scheduler threads as
-%% possible to be fully loaded (i.e., not run out of work). When
-%% scheduler utilization balancing is enabled the system will instead
-%% try to balance scheduler utilization between schedulers. That is,
-%% strive for equal scheduler utilization on all schedulers.
-%%
-%% More information: http://www.erlang.org/doc/man/erl.html#+sub
-{mapping, "erlang.schedulers.utilization_balancing", "vm_args.+sub", [
-  {commented, "true"},
-  {datatype, {enum, [true, false]}}
-]}.
-
 %% @doc For ease of firewall configuration, the Erlang distribution
 %% can be bound to a limited range of TCP ports. If this is set, and
 %% erlang.distribution.port_range.maximum is *unset*, only this port
@@ -300,15 +190,13 @@
 %% http://www.erlang.org/doc/man/kernel_app.html
 {mapping, "erlang.distribution.port_range.minimum", "kernel.inet_dist_listen_min", [
   {commented, 6000},
-  {datatype, integer},
-  hidden
+  {datatype, integer}
 ]}.
 
 %% @see erlang.distribution.port_range.minimum
 {mapping, "erlang.distribution.port_range.maximum", "kernel.inet_dist_listen_max", [
   {commented, 7999},
-  {datatype, integer},
-  hidden
+  {datatype, integer}
 ]}.
 
 %% @doc Set the net_kernel's net_ticktime.
@@ -317,6 +205,5 @@
 %% and http://www.erlang.org/doc/man/net_kernel.html#set_net_ticktime-1
 {mapping, "erlang.distribution.net_ticktime", "vm_args.-kernel net_ticktime", [
   {commented, 60},
-  {datatype, integer},
-  hidden
+  {datatype, integer}
 ]}.

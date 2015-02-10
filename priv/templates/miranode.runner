@@ -408,7 +408,7 @@ case "$1" in
             echo "Node is not running!"
             exit $ES
         fi
-        $NODETOOL rpcterms {{nodeid}}_recovery refresh ""
+        $NODETOOL rpcterms {{recovery_module}} refresh ""
         ;;
   
     pause_consumers)
@@ -418,7 +418,7 @@ case "$1" in
             echo "Node is not running!"
             exit $ES
         fi
-        $NODETOOL rpcterms {{nodeid}}_recovery pause_all_consumers ""
+        $NODETOOL rpcterms {{recovery_module}} pause_all_consumers ""
         ;;
 
     resume_consumers)
@@ -428,7 +428,7 @@ case "$1" in
             echo "Node is not running!"
             exit $ES
         fi
-        $NODETOOL rpcterms {{nodeid}}_recovery resume_all_consumers ""
+        $NODETOOL rpcterms {{recovery_module}} resume_all_consumers ""
         ;;
 
     dlq_requeue)
@@ -438,7 +438,7 @@ case "$1" in
             echo "Node is not running!"
             exit $ES
         fi
-        $NODETOOL rpcterms {{nodeid}}_recovery start_dlq_recovery_on_all_requeue ""
+        $NODETOOL rpcterms {{recovery_module}} start_dlq_recovery_on_all_requeue ""
         ;;
 
     apply)

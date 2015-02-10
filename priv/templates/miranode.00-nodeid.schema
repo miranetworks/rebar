@@ -43,19 +43,19 @@
 %% @doc IP Checker rules for http interface. Comma-seperated list of 
 %%      routing_prefix/mask (i.e. CIDR notation) entries
 %%      Example: 10.2.2.0/24,192.168.0.1/32,127.0.0.0/24
-{mapping, "ipchecker.$name", "{{nodeid}}.ipchecker", [
+{mapping, "ip_checker.$name", "{{nodeid}}.ip_checker", [
         {datatype, string}
     ,   {default, "127.0.0.1/24,127.0.0.2/24"}
     ,   {include_default, "all"}
 ]}.
 
 {translation,
- "{{nodeid}}.ipchecker",
+ "{{nodeid}}.ip_checker",
   fun(Conf) ->
 
     HttpIpRules = lists:filter(
     fun({K, _V}) ->
-       cuttlefish_variable:is_fuzzy_match(K, string:tokens("ipchecker.$name", "."))
+       cuttlefish_variable:is_fuzzy_match(K, string:tokens("ip_checker.$name", "."))
     end,
     Conf),
 

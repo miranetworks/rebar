@@ -61,22 +61,38 @@ ERTS_VSN=${START_ERL% *}
 APP_VSN=${START_ERL#* }
 
 if test -e ${CUTTLEFISH_ESCRIPT} && ( test -e ${ETC_DEFAULT_CONF} || test -e $RUNNER_ETC_DEFAULT_CONF ); then
-    mkdir -p $RUNNER_GEN_CFG_DIR
 
-    if [ -f $ETC_DEFAULT_CONF ]; then
-        CUTTLEFISH_CONF=$ETC_DEFAULT_CONF
-    else
-        CUTTLEFISH_CONF=$RUNNER_ETC_DEFAULT_CONF
-    fi
+    case $1 in
+    start|start_boot|reload|refresh|console|foreground)
 
-    CUTTLEFISH_CFG=`$RUNNER_BASE_DIR/erts-$ERTS_VSN/bin/escript $CUTTLEFISH_ESCRIPT -c $CUTTLEFISH_CONF -e $RUNNER_ETC_DIR/ -s $RUNNER_BASE_DIR/lib/ -d $RUNNER_GEN_CFG_DIR/`
+        mkdir -p $RUNNER_GEN_CFG_DIR
+
+        if [ -f $ETC_DEFAULT_CONF ]; then
+            CUTTLEFISH_CONF=$ETC_DEFAULT_CONF
+        else
+            CUTTLEFISH_CONF=$RUNNER_ETC_DEFAULT_CONF
+        fi
+
+        CUTTLEFISH_CFG=`$RUNNER_BASE_DIR/erts-$ERTS_VSN/bin/escript $CUTTLEFISH_ESCRIPT -c $CUTTLEFISH_CONF -e $RUNNER_ETC_DIR/ -s $RUNNER_BASE_DIR/lib/ -d $RUNNER_GEN_CFG_DIR/`
+
+        if [ ! -z "$CUTTLEFISH_CFG" ]; then
+            echo "$CUTTLEFISH_CFG" > $RUNNER_GEN_CFG_DIR/last_cuttlefish_config
+        fi
+        ;;
+
+    *)
+        CUTTLEFISH_CFG=`cat $RUNNER_GEN_CFG_DIR/last_cuttlefish_config`
+        ;;
+    esac
 
     if [ -z "$CUTTLEFISH_CFG" ]; then
-        echo "cuttlefish failed to generate config files."
+        echo "cuttlefish failed to generate/source config files."
         exit 1
     fi
+
     VMARGS_PATH=`echo ${CUTTLEFISH_CFG} | awk '{print $4}'`
     CONFIG_PATH=`echo ${CUTTLEFISH_CFG} | awk '{print $2}'`
+
 else
     VMARGS_PATH="$RUNNER_ETC_DIR/vm.args"
     CONFIG_PATH="$RUNNER_ETC_DIR/app.config"
@@ -401,6 +417,16 @@ case "$1" in
         ;;
 
 # App specific section start.
+    reload)
+        ping_node
+        ES=$?
+        if [ "$ES" -ne 0 ]; then
+            echo "Node is not running!"
+            exit $ES
+        fi
+        $NODETOOL rpcterms mta_recovery reload "\"${CONFIG_PATH}\"."
+        ;;
+
     refresh)
         ping_node
         ES=$?
@@ -454,7 +480,7 @@ case "$1" in
 # App specific section end.
 
     *)
-        echo "Usage: $SCRIPT {start|stop|ping|console|getpid|console_clean|attach|remote_console|refresh|pause_consumers|resume_consumers|dlq_requeue|apply}"
+        echo "Usage: $SCRIPT {start|stop|ping|console|getpid|console_clean|attach|remote_console|reload|refresh|pause_consumers|resume_consumers|dlq_requeue|apply}"
         exit 1
         ;;
 esac

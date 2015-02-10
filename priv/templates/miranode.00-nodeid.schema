@@ -59,7 +59,15 @@
     end,
     Conf),
 
-    [ {Path, Rules} || {[_,Path], Rules} <- HttpIpRules ]
+    Explode = fun(StrRules) ->
+
+        Rules = [ string:strip(T) || T <- string:tokens(StrRules, ",")],
+
+        [ CIDR || CIDR <- Rules , CIDR =/= ""]
+
+    end,
+
+    [ {Path, Explode(Rules)} || {[_,Path], Rules} <- HttpIpRules ]
 
   end
 }.

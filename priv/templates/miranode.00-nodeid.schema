@@ -1,0 +1,82 @@
+%%-*- mode: erlang -*-
+
+%% @doc HTTP Listeners
+{mapping, "listener.http.$name", "{{nodeid}}.http_listeners", [
+        {datatype, ip}
+    ,   {default, {"0.0.0.0", {{app_port}} }}
+    ,   {include_default, "default"}
+]}.
+
+{translation,
+ "{{nodeid}}.http_listeners",
+  fun(Conf) ->
+      HTTP = cuttlefish_variable:filter_by_prefix("listener.http", Conf),
+      [ {list_to_atom("http_listener_" ++ N), IP} || {["listener","http",N], IP} <- HTTP]
+  end
+}.
+
+%% @doc HTTPS Listeners
+{mapping, "listener.https.$name", "{{nodeid}}.https_listeners", [
+        {datatype, string}
+    ,   {default, "0.0.0.0:64001 ./priv/ssl/certificate.pem ./priv/ssl/key.pem"}
+    ,   {include_default, "default"}
+]}.
+
+{translation,
+ "{{nodeid}}.https_listeners",
+  fun(Conf) ->
+
+    HTTPS = cuttlefish_variable:filter_by_prefix("listener.https", Conf),
+
+    Crack = fun(Name, S) ->
+        [StrIpPort, CertFile, KeyFile] = string:tokens(S, " "),
+        [StrIp, StrPort]  = string:tokens(StrIpPort, ":"),
+        {ok, Ip} = inet:parse_address(StrIp),
+        {list_to_atom("https_listener_" ++ Name), {Ip, list_to_integer(StrPort), CertFile, KeyFile}}
+    end,
+
+    [Crack(N, V) || {["listener","https",N], V} <- HTTPS]
+  end
+}.
+
+
+%% @doc IP Checker rules for http interface. Comma-seperated list of 
+%%      routing_prefix/mask (i.e. CIDR notation) entries
+%%      Example: 10.2.2.0/24,192.168.0.1/32,127.0.0.0/24
+{mapping, "ip_checker.$name", "{{nodeid}}.ip_checker", [
+        {datatype, string}
+    ,   {default, "127.0.0.1/24,127.0.0.2/24"}
+    ,   {include_default, "all"}
+]}.
+
+{translation,
+ "{{nodeid}}.ip_checker",
+  fun(Conf) ->
+
+    HttpIpRules = lists:filter(
+    fun({K, _V}) ->
+       cuttlefish_variable:is_fuzzy_match(K, string:tokens("ip_checker.$name", "."))
+    end,
+    Conf),
+
+    Explode = fun(StrRules) ->
+
+        Rules = [ string:strip(T) || T <- string:tokens(StrRules, ",")],
+
+        [ CIDR || CIDR <- Rules , CIDR =/= ""]
+
+    end,
+
+    [ {Path, Explode(Rules)} || {[_,Path], Rules} <- HttpIpRules ]
+
+  end
+}.
+
+
+%% @doc UUID - 12 character hex string to use as the MAC in 
+%% UUID generation.
+{mapping, "uuid_mac", "mira_uuid_server.node_mac", [
+        {datatype, string}
+    ,   {default, "001122334455"}
+]}.
+

@@ -293,6 +293,23 @@ case "$1" in
         exec $ERTS_PATH/to_erl $PIPE_DIR
         ;;
 
+    eval)
+        # Make sure a node IS running
+        ping_node > /dev/null 2>&1
+        ES=$?
+        if [ "$ES" -ne 0 ]; then
+            echo "Node is not running!"
+            exit $ES
+        fi
+
+        shift
+        $NODETOOL eval "$1"
+        ES_EVAL=$?
+        if [ "$ES_EVAL" -ne 0 ]; then
+            exit $ES_EVAL
+        fi
+        ;;
+
     remote_console)
         # Make sure a node is running
         ping_node
@@ -322,10 +339,7 @@ case "$1" in
             exit $ES
         fi
 
-        node_name=`echo $NAME_ARG | awk '{print $2}'`
-        erlang_cookie=`echo $COOKIE_ARG | awk '{print $2}'`
-
-        $ERTS_PATH/escript $RUNNER_BASE_DIR/bin/install_upgrade.escript $node_name $erlang_cookie $2
+        $NODETOOL upgrade $2
         ;;
 
     console|console_clean|console_boot)
@@ -396,7 +410,7 @@ case "$1" in
         echo $PID
         ;;
     *)
-        echo "Usage: $SCRIPT {start|start_boot <file>|foreground|stop|restart|reboot|ping|console|getpid|console_clean|console_boot <file>|attach|remote_console|upgrade}"
+        echo "Usage: $SCRIPT {start|start_boot <file>|foreground|stop|restart|reboot|ping|console|getpid|console_clean|console_boot <file>|attach|eval|remote_console|upgrade}"
         exit 1
         ;;
 esac

@@ -31,29 +31,46 @@
          get_arch/0,
          wordsize/0,
          sh/2,
-         find_files/2, find_files/3,
+         sh_send/3,
+         find_files/2,
+         find_files/3,
+         find_files_by_ext/2,
+         find_files_by_ext/3,
          now_str/0,
          ensure_dir/1,
-         beam_to_mod/2, beams/1,
+         beam_to_mod/2,
+         beams/1,
          erl_to_mod/1,
-         abort/0, abort/2,
+         abort/0,
+         abort/2,
          escript_foldl/3,
          find_executable/1,
          prop_check/3,
          expand_code_path/0,
          expand_env_variable/3,
          vcs_vsn/3,
-         deprecated/3, deprecated/4,
-         get_deprecated_global/4, get_deprecated_global/5,
-         get_experimental_global/3, get_experimental_local/3,
-         get_deprecated_list/4, get_deprecated_list/5,
-         get_deprecated_local/4, get_deprecated_local/5,
+         deprecated/3,
+         deprecated/4,
+         get_deprecated_global/4,
+         get_deprecated_global/5,
+         get_experimental_global/3,
+         get_experimental_local/3,
+         get_deprecated_list/4,
+         get_deprecated_list/5,
+         get_deprecated_local/4,
+         get_deprecated_local/5,
          delayed_halt/1,
          erl_opts/1,
          src_dirs/1,
          ebin_dir/0,
          base_dir/1,
-         processing_base_dir/1, processing_base_dir/2]).
+         processing_base_dir/1,
+         processing_base_dir/2,
+         patch_env/2,
+         cleanup_code_path/1]).
+
+%% for internal use only
+-export([otp_release/0]).
 
 -include("rebar.hrl").
 
@@ -75,7 +92,7 @@ is_arch(ArchRegex) ->
 
 get_arch() ->
     Words = wordsize(),
-    erlang:system_info(otp_release) ++ "-"
+    otp_release() ++ "-"
         ++ erlang:system_info(system_architecture) ++ "-" ++ Words.
 
 wordsize() ->
@@ -86,6 +103,25 @@ wordsize() ->
         error:badarg ->
             integer_to_list(8 * erlang:system_info(wordsize))
     end.
+
+sh_send(Command0, String, Options0) ->
+    ?INFO("sh_send info:\n\tcwd: ~p\n\tcmd: ~s < ~s\n",
+          [get_cwd(), Command0, String]),
+    ?DEBUG("\topts: ~p\n", [Options0]),
+
+    DefaultOptions = [use_stdout, abort_on_error],
+    Options = [expand_sh_flag(V)
+               || V <- proplists:compact(Options0 ++ DefaultOptions)],
+
+    Command = patch_on_windows(Command0, proplists:get_value(env, Options, [])),
+    PortSettings = proplists:get_all_values(port_settings, Options) ++
+        [exit_status, {line, 16384}, use_stdio, stderr_to_stdout, hide],
+    Port = open_port({spawn, Command}, PortSettings),
+
+    %% allow us to send some data to the shell command's STDIN
+    %% Erlang doesn't let us get any reply after sending an EOF, though...
+    Port ! {self(), {command, String}},
+    port_close(Port).
 
 %%
 %% Options = [Option] -- defaults to [use_stdout, abort_on_error]
@@ -125,6 +161,28 @@ find_files(Dir, Regex) ->
 find_files(Dir, Regex, Recursive) ->
     filelib:fold_files(Dir, Regex, Recursive,
                        fun(F, Acc) -> [F | Acc] end, []).
+
+%% Find files by extension, for example ".erl", avoiding resource fork
+%% files in OS X.  Such files are named for example src/._xyz.erl
+%% Such files may also appear with network filesystems on OS X.
+%%
+%% The Ext is really a regexp, with any leading dot implicitly
+%% escaped, and anchored at the end of the string.
+%%
+find_files_by_ext(Dir, Ext) ->
+    find_files_by_ext(Dir, Ext, true).
+
+find_files_by_ext(Dir, Ext, Recursive) ->
+    %% Convert simple extension to proper regex
+    EscapeDot = case Ext of
+                    "." ++ _ ->
+                        "\\";
+                    _ ->
+                        %% allow for other suffixes, such as _pb.erl
+                        ""
+                end,
+    ExtRe = "^[^._].*" ++ EscapeDot ++ Ext ++ [$$],
+    find_files(Dir, ExtRe, Recursive).
 
 now_str() ->
     {{Year, Month, Day}, {Hour, Minute, Second}} = calendar:local_time(),
@@ -319,9 +377,64 @@ processing_base_dir(Config, Dir) ->
     AbsDir = filename:absname(Dir),
     AbsDir =:= base_dir(Config).
 
+%% @doc Returns the list of environment variables including 'REBAR' which
+%% points to the rebar executable used to execute the currently running
+%% command. The environment is not modified if rebar was invoked
+%% programmatically.
+-spec patch_env(rebar_config:config(), [{string(), string()}])
+               -> [{string(), string()}].
+patch_env(Config, []) ->
+    %% If we reached an empty list, the env did not contain the REBAR variable.
+    case rebar_config:get_xconf(Config, escript, "") of
+        "" -> % rebar was invoked programmatically
+            [];
+        Path ->
+            [{"REBAR", Path}]
+    end;
+patch_env(_Config, [{"REBAR", _} | _]=All) ->
+    All;
+patch_env(Config, [E | Rest]) ->
+    [E | patch_env(Config, Rest)].
+
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
+
+otp_release() ->
+    otp_release1(erlang:system_info(otp_release)).
+
+%% If OTP <= R16, otp_release is already what we want.
+otp_release1([$R,N|_]=Rel) when is_integer(N) ->
+    Rel;
+%% If OTP >= 17.x, erlang:system_info(otp_release) returns just the
+%% major version number, we have to read the full version from
+%% a file. See http://www.erlang.org/doc/system_principles/versions.html
+%% Read vsn string from the 'OTP_VERSION' file and return as list without
+%% the "\n".
+otp_release1(Rel) ->
+    File = filename:join([code:root_dir(), "releases", Rel, "OTP_VERSION"]),
+    {ok, Vsn} = file:read_file(File),
+
+    %% It's fine to rely on the binary module here because we can
+    %% be sure that it's available when the otp_release string does
+    %% not begin with $R.
+    Size = byte_size(Vsn),
+    %% The shortest vsn string consists of at least two digits
+    %% followed by "\n". Therefore, it's safe to assume Size >= 3.
+    case binary:part(Vsn, {Size, -3}) of
+        <<"**\n">> ->
+            %% The OTP documentation mentions that a system patched
+            %% using the otp_patch_apply tool available to licensed
+            %% customers will leave a '**' suffix in the version as a
+            %% flag saying the system consists of application versions
+            %% from multiple OTP versions. We ignore this flag and
+            %% drop the suffix, given for all intents and purposes, we
+            %% cannot obtain relevant information from it as far as
+            %% tooling is concerned.
+            binary:bin_to_list(Vsn, {0, Size - 3});
+        _ ->
+            binary:bin_to_list(Vsn, {0, Size - 1})
+    end.
 
 get_deprecated_3(Get, Config, OldOpt, NewOpt, Default, When) ->
     case Get(Config, NewOpt, Default) of
@@ -480,6 +593,7 @@ vcs_vsn_1(Vcs, Dir) ->
     end.
 
 vcs_vsn_cmd(git)    -> "git describe --always --tags";
+vcs_vsn_cmd(p4)     -> "echo #head";
 vcs_vsn_cmd(hg)     -> "hg identify -i";
 vcs_vsn_cmd(bzr)    -> "bzr revno";
 vcs_vsn_cmd(svn)    -> "svnversion";
@@ -514,3 +628,17 @@ filter_defines([{platform_define, ArchRegex, Key, Value} | Rest], Acc) ->
     end;
 filter_defines([Opt | Rest], Acc) ->
     filter_defines(Rest, [Opt | Acc]).
+
+cleanup_code_path(OrigPath) ->
+    CurrentPath = code:get_path(),
+    AddedPaths = CurrentPath -- OrigPath,
+    %% If someone has removed paths, it's hard to get them back into
+    %% the right order, but since this is currently rare, we can just
+    %% fall back to code:set_path/1.
+    case CurrentPath -- AddedPaths of
+        OrigPath ->
+            _ = [code:del_path(Path) || Path <- AddedPaths],
+            true;
+        _ ->
+            code:set_path(OrigPath)
+    end.

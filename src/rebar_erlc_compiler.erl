@@ -47,6 +47,14 @@
           info = {[], []} :: erlc_info()
         }).
 
+-ifdef(namespaced_types).
+%% digraph:graph() exists starting from Erlang 17.
+-type rebar_digraph() :: digraph:graph().
+-else.
+%% digraph() has been obsoleted in Erlang 17 and deprecated in 18.
+-type rebar_digraph() :: digraph().
+-endif.
+
 %% ===================================================================
 %% Public API
 %% ===================================================================
@@ -102,14 +110,14 @@ compile(Config, _AppFile) ->
 
 -spec clean(rebar_config:config(), file:filename()) -> 'ok'.
 clean(Config, _AppFile) ->
-    MibFiles = rebar_utils:find_files("mibs", "^.*\\.mib\$"),
+    MibFiles = rebar_utils:find_files_by_ext("mibs", ".mib"),
     MIBs = [filename:rootname(filename:basename(MIB)) || MIB <- MibFiles],
     rebar_file_utils:delete_each(
       [filename:join(["include",MIB++".hrl"]) || MIB <- MIBs]),
     lists:foreach(fun(F) -> ok = rebar_file_utils:rm_rf(F) end,
                   ["ebin/*.beam", "priv/mibs/*.bin"]),
 
-    YrlFiles = rebar_utils:find_files("src", "^.*\\.[x|y]rl\$"),
+    YrlFiles = rebar_utils:find_files_by_ext("src", ".[x|y]rl"),
     rebar_file_utils:delete_each(
       [ binary_to_list(iolist_to_binary(re:replace(F, "\\.[x|y]rl$", ".erl")))
         || F <- YrlFiles ]),
@@ -121,7 +129,7 @@ clean(Config, _AppFile) ->
     %% directory structure in ebin with .beam files within. As such, we want
     %% to scan whatever is left in the ebin/ directory for sub-dirs which
     %% satisfy our criteria.
-    BeamFiles = rebar_utils:find_files("ebin", "^.*\\.beam\$"),
+    BeamFiles = rebar_utils:find_files_by_ext("ebin", ".beam"),
     rebar_file_utils:delete_each(BeamFiles),
     lists:foreach(fun(Dir) -> delete_dir(Dir, dirs(Dir)) end, dirs("ebin")),
     ok.
@@ -132,7 +140,7 @@ clean(Config, _AppFile) ->
 
 test_compile(Config, Cmd, OutDir) ->
     %% Obtain all the test modules for inclusion in the compile stage.
-    TestErls = rebar_utils:find_files("test", ".*\\.erl\$"),
+    TestErls = rebar_utils:find_files_by_ext("test", ".erl"),
 
     ErlOpts = rebar_utils:erl_opts(Config),
     {Config1, ErlOpts1} = test_compile_config_and_opts(Config, ErlOpts, Cmd),
@@ -143,7 +151,7 @@ test_compile(Config, Cmd, OutDir) ->
     SrcDirs = rebar_utils:src_dirs(proplists:append_values(src_dirs, ErlOpts1)),
     SrcErls = lists:foldl(
                 fun(Dir, Acc) ->
-                        Files = rebar_utils:find_files(Dir, ".*\\.erl\$"),
+                        Files = rebar_utils:find_files_by_ext(Dir, ".erl"),
                         lists:append(Acc, Files)
                 end, [], SrcDirs),
 
@@ -208,7 +216,7 @@ info_help(Description) ->
                      "(linux|solaris|freebsd|darwin)", 'HAVE_SENDFILE'},
                     {platform_define, "(linux|freebsd)", 'BACKLOG', 128},
                     {platform_define, "R13", 'old_inets'}]},
-        {erl_first_files, ["mymib1", "mymib2"]},
+        {erl_first_files, ["src/mymib1.erl", "src/mymib2.erl"]},
         {mib_opts, []},
         {mib_first_files, []},
         {xrl_opts, []},
@@ -222,6 +230,13 @@ test_compile_config_and_opts(Config, ErlOpts, Cmd) ->
     {Config2, PropErOpts} = proper_opts(Config1),
     {Config3, EqcOpts} = eqc_opts(Config2),
 
+    %% NOTE: For consistency, all *_first_files lists should be
+    %% retrieved via rebar_config:get_local. Right now
+    %% erl_first_files, eunit_first_files, and qc_first_files use
+    %% rebar_config:get_list and are inherited, but xrl_first_files
+    %% and yrl_first_files use rebar_config:get_local. Inheritance of
+    %% *_first_files is questionable as the file would need to exist
+    %% in all project directories for it to work.
     OptsAtom = list_to_atom(Cmd ++ "_compile_opts"),
     TestOpts = rebar_config:get_list(Config3, OptsAtom, []),
     Opts0 = [{d, 'TEST'}] ++
@@ -277,20 +292,28 @@ doterl_compile(Config, OutDir) ->
     doterl_compile(Config, OutDir, [], ErlOpts).
 
 doterl_compile(Config, OutDir, MoreSources, ErlOpts) ->
-    ErlFirstFiles = rebar_config:get_list(Config, erl_first_files, []),
+    ErlFirstFilesConf = rebar_config:get_list(Config, erl_first_files, []),
     ?DEBUG("erl_opts ~p~n", [ErlOpts]),
     %% Support the src_dirs option allowing multiple directories to
     %% contain erlang source. This might be used, for example, should
     %% eunit tests be separated from the core application source.
     SrcDirs = rebar_utils:src_dirs(proplists:append_values(src_dirs, ErlOpts)),
-    RestErls  = [Source || Source <- gather_src(SrcDirs, []) ++ MoreSources,
-                           not lists:member(Source, ErlFirstFiles)],
+    AllErlFiles = gather_src(SrcDirs, []) ++ MoreSources,
+    %% NOTE: If and when erl_first_files is not inherited anymore
+    %% (rebar_config:get_local instead of rebar_config:get_list), consider
+    %% logging a warning message for any file listed in erl_first_files which
+    %% wasn't found via gather_src.
+    RestErls = [File || File <- AllErlFiles,
+                        not lists:member(File, ErlFirstFilesConf)],
+    %% NOTE: order of files in ErlFirstFiles is important!
+    ErlFirstFiles = [File || File <- ErlFirstFilesConf,
+                             lists:member(File, AllErlFiles)],
     %% Make sure that ebin/ exists and is on the path
     ok = filelib:ensure_dir(filename:join("ebin", "dummy.beam")),
     CurrPath = code:get_path(),
     true = code:add_path(filename:absname("ebin")),
     OutDir1 = proplists:get_value(outdir, ErlOpts, OutDir),
-    G = init_erlcinfo(Config, RestErls),
+    G = init_erlcinfo(Config, AllErlFiles),
     %% Split RestErls so that files which are depended on are treated
     %% like erl_first_files.
     {OtherFirstErls, OtherErls} =
@@ -329,7 +352,7 @@ doterl_compile(Config, OutDir, MoreSources, ErlOpts) ->
       fun(S, C) ->
               internal_erl_compile(C, S, OutDir1, ErlOpts, G)
       end),
-    true = code:set_path(CurrPath),
+    true = rebar_utils:cleanup_code_path(CurrPath),
     ok.
 
 %%
@@ -387,8 +410,8 @@ check_erlcinfo(Config, _) ->
     ?ABORT("~s file is invalid. Please delete before next run.~n",
            [erlcinfo_file(Config)]).
 
-erlcinfo_file(Config) ->
-    filename:join([rebar_utils:base_dir(Config), ".rebar", ?ERLCINFO_FILE]).
+erlcinfo_file(_Config) ->
+    filename:join([rebar_utils:get_cwd(), ".rebar", ?ERLCINFO_FILE]).
 
 init_erlcinfo(Config, Erls) ->
     G = restore_erlcinfo(Config),
@@ -522,19 +545,19 @@ expand_file_names(Files, Dirs) ->
               end
       end, Files).
 
--spec get_parents(digraph(), file:filename()) -> [file:filename()].
+-spec get_parents(rebar_digraph(), file:filename()) -> [file:filename()].
 get_parents(G, Source) ->
     %% Return all files which the Source depends upon.
     digraph_utils:reachable_neighbours([Source], G).
 
--spec get_children(digraph(), file:filename()) -> [file:filename()].
+-spec get_children(rebar_digraph(), file:filename()) -> [file:filename()].
 get_children(G, Source) ->
     %% Return all files dependent on the Source.
     digraph_utils:reaching_neighbours([Source], G).
 
 -spec internal_erl_compile(rebar_config:config(), file:filename(),
                            file:filename(), list(),
-                           digraph()) -> 'ok' | 'skipped'.
+                           rebar_digraph()) -> 'ok' | 'skipped'.
 internal_erl_compile(Config, Source, OutDir, ErlOpts, G) ->
     %% Determine the target name and includes list by inspecting the source file
     Module = filename:basename(Source, ".erl"),
@@ -622,7 +645,8 @@ compile_xrl_yrl(Config, Source, Target, Opts, Mod) ->
 gather_src([], Srcs) ->
     Srcs;
 gather_src([Dir|Rest], Srcs) ->
-    gather_src(Rest, Srcs ++ rebar_utils:find_files(Dir, ".*\\.erl\$")).
+    gather_src(
+      Rest, Srcs ++ rebar_utils:find_files_by_ext(Dir, ".erl")).
 
 -spec dirs(file:filename()) -> [file:filename()].
 dirs(Dir) ->

@@ -191,6 +191,46 @@ eunit_with_suites_and_tests_test_() ->
 
                {"Selected suite tests is run once",
                 ?_assert(string:str(RebarOut, "All 2 tests passed") =/= 0)}]
+      end},
+     {"Ensure EUnit runs a specific test by qualified function name",
+      setup,
+      fun() ->
+              setup_project_with_multiple_modules(),
+              rebar("-v eunit tests=myapp_mymod:myprivate_test")
+      end,
+      fun teardown/1,
+      fun(RebarOut) ->
+              [{"Selected test is run",
+                [?_assert(string:str(RebarOut,
+                                     "myapp_mymod:myprivate_test/0")
+                          =/= 0)]},
+
+               {"Only selected test is run",
+                [?_assert(string:str(RebarOut,
+                                     "Test passed.") =/= 0)]}]
+      end},
+     {"Ensure EUnit runs a specific test by qualified function "
+      ++ "name and tests from other module",
+      setup,
+      fun() ->
+              setup_project_with_multiple_modules(),
+              rebar("-v eunit suites=myapp_mymod3 "
+                    ++ "tests=myapp_mymod:myprivate_test")
+      end,
+      fun teardown/1,
+      fun(RebarOut) ->
+              [{"Selected test is run",
+                [?_assert(string:str(RebarOut,
+                                     "myapp_mymod:myprivate_test/0") =/= 0)]},
+
+               {"Tests from module are run",
+                [?_assert(string:str(RebarOut,
+                                     "myapp_mymod3:") =/= 0)]},
+
+               {"Only selected tests are run",
+                [?_assert(string:str(RebarOut,
+                                     "Failed: 1.  Skipped: 0.  Passed: 1")
+                          =/= 0)]}]
       end}].
 
 cover_test_() ->
@@ -284,6 +324,62 @@ basic_setup_test_() ->
          assert_files_in("Basic Project",
                          ["test/myapp_mymod_tests.erl",
                           "src/myapp_mymod.erl"])}.
+
+code_path_test_() ->
+    [{"Ensuring that fast code path cleanup is correct for adds",
+      setup, fun make_tmp_dir/0,
+      fun(_) -> remove_tmp_dir() end,
+      fun() ->
+              OPath = code:get_path(),
+              PathZ = ?TMP_DIR ++ "some_path",
+              PathA = ?TMP_DIR ++ "some_other_path",
+              ok = file:make_dir(PathZ),
+              ok = file:make_dir(PathA),
+              true = code:add_pathz(PathZ),
+              true = code:add_patha(PathA),
+              %% make sure that they've been added
+              ?assertEqual([PathA] ++ OPath ++ [PathZ],
+                           code:get_path()),
+              true = rebar_utils:cleanup_code_path(OPath),
+              ?assertEqual(OPath, code:get_path())
+      end},
+     {"Ensuring that fast code path cleanup is correct for removes",
+      setup, fun make_tmp_dir/0,
+      fun(_) -> remove_tmp_dir() end,
+      fun() ->
+              OPath = code:get_path(),
+              Path1 = lists:nth(10, OPath),
+              Path2 = lists:nth(11, OPath),
+              true = code:del_path(Path1),
+              true = code:del_path(Path2),
+              %% make sure that they've been added
+              ?assertEqual(OPath -- [Path1, Path2],
+                           code:get_path()),
+              true = rebar_utils:cleanup_code_path(OPath),
+              ?assertEqual(OPath, code:get_path())
+      end},
+     {"Ensuring that fast code path cleanup is equivalent for adds",
+      setup, fun make_tmp_dir/0,
+      fun(_) -> remove_tmp_dir() end,
+      fun() ->
+              OPath = code:get_path(),
+              PathZ = ?TMP_DIR ++ "some_path",
+              PathA = ?TMP_DIR ++ "some_other_path",
+              ok = file:make_dir(PathZ),
+              ok = file:make_dir(PathA),
+              true = code:add_pathz(PathZ),
+              true = code:add_patha(PathA),
+              %% make sure that they've been added
+              ?assertEqual([PathA] ++ OPath ++ [PathZ],
+                           code:get_path()),
+              true = rebar_utils:cleanup_code_path(OPath),
+              CleanedPath = code:get_path(),
+              true = code:add_pathz(PathZ),
+              true = code:add_patha(PathA),
+              true = code:set_path(OPath),
+              ?assertEqual(CleanedPath, code:get_path())
+      end}].
+
 
 %% ====================================================================
 %% Setup and Teardown

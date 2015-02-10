@@ -36,11 +36,42 @@ Do not commit to master in your fork.
 
 Provide a clean branch without merge commits.
 
+Tests
+-----
+
+As a general rule, any behavioral change to rebar requires a test to go with it. If there's  
+already a test case, you may have to modify that one. If there isn't a test case or a test  
+suite, add a new test case or suite in `inttest/`. [retest](https://github.com/dizzyd/retest) based tests are preferred, but  
+we also have EUnit tests in `test/`.
+
+Say you've added a new test case in `inttest/erlc`. To only execute the modified suite,  
+you would do the following:
+```sh
+# First we build rebar and its deps to also get `deps/retest/retest`
+$ make debug deps
+# Now we can test the modified erlc suite
+$ deps/retest/retest -v inttest/erlc
+```
+
+To test EUnit tests, you would do:
+```sh
+$ make debug
+$ ./rebar -v eunit
+```
+
+You can also run `make test` to execute both EUnit and [retest](https://github.com/dizzyd/retest) tests as `make check` does.
+
+Credit
+------
+
+To give everyone proper credit in addition to the git history, please feel free to append  
+your name to `THANKS` in your first contribution.
+
 Committing your changes
 -----------------------
 
 Please ensure that all commits pass all tests, and do not have extra Dialyzer warnings.  
-To do that run `make check`. If you didn't build via `make debug` at first, the beam files in  
+To do that, run `make check`. If you didn't build via `make debug` at first, the beam files in  
 `ebin/` might be missing debug_info required for [xref](http://www.erlang.org/doc/man/xref.html) 
 and [Dialyzer](http://www.erlang.org/doc/man/dialyzer.html), causing a test 
 failure.  

@@ -42,7 +42,7 @@
 
 -include("rebar.hrl").
 
--define(TEMPLATE_RE, ".*\\.template\$").
+-define(TEMPLATE_RE, "^[^._].*\\.template\$").
 
 %% ===================================================================
 %% Public API
@@ -254,11 +254,10 @@ find_escript_templates(Files) ->
 
 find_disk_templates(Config) ->
     OtherTemplates = find_other_templates(Config),
-    HomeFiles = rebar_utils:find_files(filename:join([os:getenv("HOME"),
-                                                      ".rebar", "templates"]),
-                                       ?TEMPLATE_RE),
+    HomeTemplates = filename:join([os:getenv("HOME"), ".rebar", "templates"]),
+    HomeFiles = rebar_utils:find_files_by_ext(HomeTemplates, ".template"),
     Recursive = rebar_config:is_recursive(Config),
-    LocalFiles = rebar_utils:find_files(".", ?TEMPLATE_RE, Recursive),
+    LocalFiles = rebar_utils:find_files_by_ext(".", ".template", Recursive),
     [{file, F} || F <- OtherTemplates ++ HomeFiles ++ LocalFiles].
 
 find_other_templates(Config) ->
@@ -267,7 +266,7 @@ find_other_templates(Config) ->
         undefined ->
             [];
         TemplateDir ->
-            rebar_utils:find_files(TemplateDir, ?TEMPLATE_RE)
+            rebar_utils:find_files_by_ext(TemplateDir, ".template")
     end.
 
 select_template([], Template) ->
@@ -408,6 +407,18 @@ execute_template(Files, [{'if', Cond, True, False} | Rest], TemplateType,
                            False
                    end,
     execute_template(Files, prepend_instructions(Instructions, Rest),
+                     TemplateType, TemplateName, Context, Force,
+                     ExistingFiles);
+execute_template(Files, [{'case', Variable, Values, Instructions} | Rest], TemplateType,
+                 TemplateName, Context, Force, ExistingFiles) ->
+    {ok, Value} = dict:find(Variable, Context),
+    Instructions2 = case lists:member(Value, Values) of
+                       true ->
+                           Instructions;
+                       _ ->
+                           []
+                   end,
+    execute_template(Files, prepend_instructions(Instructions2, Rest),
                      TemplateType, TemplateName, Context, Force,
                      ExistingFiles);
 execute_template(Files, [{template, Input, Output} | Rest], TemplateType,

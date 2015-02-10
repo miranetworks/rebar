@@ -26,7 +26,8 @@
 %% -------------------------------------------------------------------
 -module(rebar_core).
 
--export([process_commands/2, help/2]).
+-export([process_commands/2,
+         help/2]).
 
 -include("rebar.hrl").
 
@@ -496,8 +497,9 @@ run_modules([Module | Rest], Command, Config, File) ->
             {Module, Error}
     end.
 
-apply_hooks(Mode, Config, Command, Env) ->
+apply_hooks(Mode, Config, Command, Env0) ->
     Hooks = rebar_config:get_local(Config, Mode, []),
+    Env = rebar_utils:patch_env(Config, Env0),
     lists:foreach(fun apply_hook/1,
                   [{Env, Hook} || Hook <- Hooks,
                                   element(1, Hook) =:= Command orelse
@@ -592,8 +594,7 @@ load_plugin_modules(Config, PredirsAssoc, Modules) ->
     ?DEBUG("Plugin dirs for ~s:~n~p~n", [Cwd, PluginDirs]),
 
     %% Find relevant sources in base_dir and plugin_dir
-    Erls = string:join([atom_to_list(M)++"\\.erl" || M <- Modules], "|"),
-    RE = "^" ++ Erls ++ "\$",
+    RE = string:join([atom_to_list(M)++"\\.erl" || M <- Modules], "|"),
     %% If a plugin is found both in base_dir and plugin_dir, the clash
     %% will provoke an error and we'll abort.
     Sources = [rebar_utils:find_files(PD, RE, false) || PD <- PluginDirs],

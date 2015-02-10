@@ -67,7 +67,7 @@ doc(Config, File) ->
     end,
 
     %% Restore code path
-    true = code:set_path(CodePath),
+    true = rebar_utils:cleanup_code_path(CodePath),
     {ok, Config1}.
 
 %% ===================================================================
@@ -87,7 +87,7 @@ setup_code_path() ->
     %% and the like can work properly when generating their own
     %% documentation.
     CodePath = code:get_path(),
-    true = code:add_patha(rebar_utils:ebin_dir()),
+    _ = code:add_patha(rebar_utils:ebin_dir()),
     CodePath.
 
 -type path_spec() :: {'file', file:filename()} | file:filename().

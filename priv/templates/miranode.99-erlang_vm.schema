@@ -125,7 +125,7 @@
 
 %% @doc Set the location of where the Mnesia db files live.
 {mapping, "erlang.mnesia_dir", "vm_args.-mnesia dir", [
-  {default, "Mnesia.{{nodeid}}"},
+  {default, "mnesia_{{nodeid}}"},
   {datatype, string}
 ]}.
 
@@ -144,6 +144,12 @@
 %% @doc Tune the number of Mnesia log dump threshold
 {mapping, "erlang.mnesia_dump_log_write_threshold", "vm_args.-mnesia dump_log_write_threshold", [
   {default, 20000},
+  {datatype, integer}
+]}.
+
+%% @doc Controls how often disc_copies tables are dumped from memory.
+{mapping, "erlang.mnesia_dc_dump_limit", "vm_args.-mnesia dc_dump_limit", [
+  {default, 4},
   {datatype, integer}
 ]}.
 

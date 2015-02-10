@@ -29,7 +29,6 @@
 -export(['create-app'/2,
          'create-lib'/2,
          'create-node'/2,
-         'create-miranode'/2,
          'list-templates'/2,
          create/2]).
 
@@ -59,11 +58,6 @@
 'create-node'(Config, _File) ->
     %% Alias for create w/ template=simplenode
     create1(Config, "simplenode").
-
-'create-miranode'(Config, _File) ->
-    %% Alias for create w/ template=simplenode
-    create1(Config, "miranode").
-
 
 'list-templates'(Config, _File) ->
     {AvailTemplates, Files} = find_templates(Config),
@@ -139,12 +133,6 @@ info(help, 'create-node') ->
        "~n"
        "Valid command line options:~n"
        "  [nodeid=mynode]~n", []);
-info(help, 'create-miranode') ->
-    ?CONSOLE(
-       "Create simple miranode skel.~n"
-       "~n"
-       "Valid command line options:~n"
-       "  [nodeid=my_app_name, package_name=package-name, runas=username, app_port=HTTP_LISTEN_PORT template_vars=path_to_file_containing_reltool_config_app_includes]~n", []);
 info(help, 'list-templates') ->
     ?CONSOLE("List available templates.~n", []).
 
